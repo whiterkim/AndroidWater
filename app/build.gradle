@@ -1,0 +1,58 @@
+import org.apache.tools.ant.taskdefs.condition.Os
+
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 19
+    buildToolsVersion "21.1.2"
+
+    defaultConfig {
+        applicationId "com.example.hyspace.myapplication"
+        minSdkVersion 19
+        targetSdkVersion 19
+        versionCode 1
+        versionName "1.0"
+    }
+
+    sourceSets.main {
+
+        jni.srcDirs = [] //Disable automatic ndk-build call
+    }
+
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    task ndkBuild(type: Exec) {
+        if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+            def ndkDir = System.getenv("ANDROID_NDK_ROOT")
+            commandLine 'cmd', '/C', "$ndkDir/ndk-build",
+                    'NDK_PROJECT_PATH=build',
+                    'APP_BUILD_SCRIPT=src/main/jni/Android.mk',
+                    'NDK_APPLICATION_MK=src/main/jni/Application.mk',
+                    'NDK_APP_LIBS_OUT = src/main/jnilibs'
+
+        } else {
+
+            //def ndkDir = System.getenv("NDKROOT")
+            def ndkDir = "/Users/hyspace/Library/Android/ndk"
+            commandLine "$ndkDir/ndk-build",
+                    'NDK_PROJECT_PATH=build',
+                    'APP_BUILD_SCRIPT=src/main/jni/Android.mk',
+                    'NDK_APPLICATION_MK=src/main/jni/Application.mk',
+                    'NDK_APP_LIBS_OUT = src/main/jnilibs'
+
+        }
+    }
+    tasks.withType(JavaCompile) {
+        compileTask -> compileTask.dependsOn ndkBuild
+    }
+
+
+}
+
+
