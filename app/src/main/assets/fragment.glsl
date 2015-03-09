@@ -34,7 +34,7 @@ void main()
   // calculate specular
   vec3 r = reflect(light.direction, n);
   float c = max(dot(r, -e), 0.0);
-  vec3 specular = light.intensities * pow(c, 200.0) * 0.3;
+  vec3 specular = light.intensities * pow(c, 300.0) * 0.5;
 
   // add caustic texture with screencapture texture
   if(final_uv.x < 0.0 || final_uv. y < 0.0 || final_uv.x > 1.0 || final_uv.y > 1.0){
