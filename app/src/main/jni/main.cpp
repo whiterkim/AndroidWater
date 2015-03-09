@@ -49,7 +49,7 @@ struct saved_state {
  */
 struct engine {
     struct android_app* app;
-
+    int initialized = 0;
     int animating;
     EGLDisplay display;
     EGLSurface surface;
@@ -62,8 +62,8 @@ struct engine {
 HeightField<GLfloat> * height_field;
 
 GLfloat dh = 16.0;
-GLfloat c = dh * 50;
-const double dt = 1.0 / 60;
+GLfloat c = 600.0;
+const double dt = dh / c / 1.5;
 
 GLuint vertex_buffer;
 GLuint index_buffer;
@@ -75,7 +75,8 @@ GLuint sc_texture_id;
 
 Resource *r;
 
-double time_now;
+double time_now, time_fps;
+unsigned int frame_counter = 0;
 
 typedef struct {
   glm::vec3 direction;
@@ -310,9 +311,6 @@ static void engine_draw_frame(struct engine* engine) {
         return;
     }
 
-//    double t;
-//    time_now = now_s();
-
     glClear(GL_COLOR_BUFFER_BIT);
 
     // regenerate mipmap for caustic shader
@@ -330,11 +328,23 @@ static void engine_draw_frame(struct engine* engine) {
     glFinish();
     eglSwapBuffers(engine->display, engine->surface);
 
+    double t = now_s();
+    ++frame_counter;
+    if(t - time_fps > 1.0){
+      double fps = (double)frame_counter / (t - time_fps);
+      LOGI("fps: %f", fps);
+      frame_counter = 0;
+      time_fps = t;
+    }
+
+
     // call OpenCL kernel
-    int err = recompute(height_field->xMax, height_field->yMax, dh, dt, c);
+    int err = recompute(height_field->xMax, height_field->yMax, dh, min((GLfloat)(t - time_now), (GLfloat)dt), c);
     if(err != 0){
         engine->animating = 0;
     }
+
+    time_now = now_s();
 }
 
 /**
@@ -368,6 +378,8 @@ static void engine_handle_cmd(struct android_app* app, int32_t cmd) {
             engine->app->savedState = malloc(sizeof(struct saved_state));
             *((struct saved_state*)engine->app->savedState) = engine->state;
             engine->app->savedStateSize = sizeof(struct saved_state);
+
+            LOGI("Status change: SAVE_STATE");
             break;
         case APP_CMD_INIT_WINDOW:
             // The window is being shown, get it ready.
@@ -375,18 +387,26 @@ static void engine_handle_cmd(struct android_app* app, int32_t cmd) {
                 engine_init_display(engine);
                 engine_draw_frame(engine);
             }
+
+            LOGI("Status change: INIT_WINDOW");
             break;
         case APP_CMD_TERM_WINDOW:
             // The window is being hidden or closed, clean it up.
             engine_term_display(engine);
+
+            LOGI("Status change: TERM_WINDOW");
             break;
         case APP_CMD_GAINED_FOCUS:
             engine->animating = 1;
+
+            LOGI("Status change: GAINED_FOCUS");
             break;
         case APP_CMD_LOST_FOCUS:
             // Also stop animating.
             engine->animating = 0;
             engine_draw_frame(engine);
+
+            LOGI("Status change: LOST_FOCUS");
             break;
     }
 }
@@ -415,7 +435,7 @@ void android_main(struct android_app* state) {
     // prepare the resource object
     r = new Resource(state);
 
-    time_now = now_s();
+    time_now = time_fps = now_s();
 
     while (1) {
         // Read all pending events.

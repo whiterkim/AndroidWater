@@ -160,7 +160,7 @@ int freeCL(){
 
 int recompute(GLuint xMax, GLuint yMax, GLfloat dh, GLfloat dt, GLfloat c)
 {
-  const int ls = 16;
+  const int ls = 8;
   uint localx = xMax + (xMax % ls ? ls - xMax % ls : 0);
   uint localy = yMax + (yMax % ls ? ls - yMax % ls : 0);
 
@@ -168,7 +168,7 @@ int recompute(GLuint xMax, GLuint yMax, GLfloat dh, GLfloat dt, GLfloat c)
   cl::NDRange global = cl::NDRange((size_t)localx, (size_t)localy);
   cl::NDRange local = cl::NDRange((size_t)ls, (size_t)ls);
 
-  int r = rand() % 1;
+  int r = rand() % 5;
   if(r == 0){
     r = rand() % (xMax * yMax);
   }else{
@@ -221,7 +221,7 @@ int recompute(GLuint xMax, GLuint yMax, GLfloat dh, GLfloat dt, GLfloat c)
   err = queue.enqueueNDRangeKernel(update_u,
                                    offset,
                                    global,
-                                   cl::NDRange((size_t)8, (size_t)8),
+                                   local,
                                    NULL,
                                    NULL);
   if (err != CL_SUCCESS)
@@ -241,7 +241,7 @@ int recompute(GLuint xMax, GLuint yMax, GLfloat dh, GLfloat dt, GLfloat c)
   err = queue.enqueueNDRangeKernel(update_caustic,
                                    cl::NullRange,
                                    global,
-                                   cl::NDRange((size_t)4, (size_t)4),
+                                   local,
                                    NULL,
                                    NULL
                                    );

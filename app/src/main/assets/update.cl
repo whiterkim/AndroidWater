@@ -115,8 +115,7 @@ __kernel void update_c(__global float *vertices,
     }
   }
   intensity = intensity / size_r;
-
-  intensity = intensity / 2.0 + 0.2;
+  intensity = intensity + 0.2;
 
   intensity = max(min(intensity, 0.5), 0.0) + 0.4;
 
@@ -443,18 +442,17 @@ __kernel void update_v(
       y22 = v[index +xMax +1].y;
     }
   }
-//  float p = (u00 + 4.0f*u01 + 4.0f*u21 + u22 - 20.0f*u11 + u20 + 4.0f*u10 + 4.0f*u12 + u02) / (6.0f * dh * dh);
-  float p = (u01 + u21 - 4.0f*u11  + u10 + u12) / (4.0f * dh * dh);
+  float p = (u00 + 4.0f*u01 + 4.0f*u21 + u22 - 20.0f*u11 + u20 + 4.0f*u10 + 4.0f*u12 + u02) / (6.0f * dh * dh);
+  //float p = (u01 + u21 - 4.0f*u11  + u10 + u12) / (4.0f * dh * dh);
 
   float f = c * c * (p - v[index].v / D);
-//  float f = c * c * p;
 
   v[index].v += f * dt;
 
-//  float3 nx = (float3)(2.0f*(x21 - x01) + x20 - x00 + x22 - x02, 0.0f, 2.0f*(u21 - u01) + u20 - u00 + u22 - u02);
-//  float3 ny = (float3)(0, 2.0f*(y12 - y10) + y02 - y00 + y22 - y20, 2.0f * (u12 - u10) + u02 - u00 + u22 - u20);
-  float3 nx = (float3)(x21 - x01, 0.0f, u21 - u01);
-  float3 ny = (float3)(0.0f, y12 - y10, u12 - u10);
+  float3 nx = (float3)(2.0f*(x21 - x01) + x20 - x00 + x22 - x02, 0.0f, 2.0f*(u21 - u01) + u20 - u00 + u22 - u02);
+  float3 ny = (float3)(0, 2.0f*(y12 - y10) + y02 - y00 + y22 - y20, 2.0f * (u12 - u10) + u02 - u00 + u22 - u20);
+  //float3 nx = (float3)(x21 - x01, 0.0f, u21 - u01);
+  //float3 ny = (float3)(0.0f, y12 - y10, u12 - u10);
   float3 n = normalize(cross(nx, ny));
 
   v[index].nx = n.x;
@@ -482,12 +480,7 @@ __kernel void update_u(
 
   int index = i * xMax + j;
   __global vertex * v = (__global vertex *) vertices;
-  // vertex vp;
   vertex vp = v[index];
-  // vp.x = v[index].x;
-  // vp.y = v[index].y;
-  // vp.z = v[index].z;
-  // vp.v = v[index].v;
 
   vp.z += vp.v * dt;
 
@@ -506,18 +499,16 @@ __kernel void update_u(
   rain_point = (float2)(v[index2].x, v[index2].y);
 
   float2 cp = (float2)(vp.x, vp.y);
+  float r;
 
-  float r, rr;
-
-  r = distance(rain_point, (float2)(v[index].x, v[index].y));
+  r = distance(rain_point, cp);
   if(r < drop_size * dh){
-    rr = random % 2;
-    if(rr == 0){
-      vp.z += 0.7f * r * cos(r / drop_size / dh * 1.57f);
+    if(random % 2){
+      vp.z += 0.2f * r * cos(r / drop_size / dh * 1.57f);
     }else{
-      vp.z -= 0.7f * r * cos(r / drop_size / dh * 1.57f);
+      vp.z -= 0.2f * r * cos(r / drop_size / dh * 1.57f);
     }
   }
 
-  v[index] = vp;
+  v[index].z = vp.z;
 }
