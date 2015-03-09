@@ -44,7 +44,7 @@ public:
   GLuint * index_buffer;
   GLuint xMax, yMax, vertex_length, index_length;
   GLuint step;
-  int attr_length = sizeof(vertex) / sizeof(GLfloat);
+  int attr_length = sizeof(vertex) / sizeof(T);
   GLushort * texture_buffer;
 
   HeightField(GLuint width, GLuint height, GLuint input_dh){
