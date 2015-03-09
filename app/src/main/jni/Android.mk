@@ -18,9 +18,9 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE    := native-activity
 LOCAL_SRC_FILES := main.cpp AssetLoader.cpp cl_host.cpp lodepng.cpp
-LOCAL_LDLIBS    := -llog -landroid -lEGL -lGLESv3
+LOCAL_LDLIBS    := -llog -landroid -lEGL -lGLESv3 -lOpenCL
 LOCAL_STATIC_LIBRARIES := android_native_app_glue
-LOCAL_LDLIBS    += $(LOCAL_PATH)/libOpenCL.so
+#LOCAL_LDLIBS    += $(LOCAL_PATH)/libOpenCL.so
 
 include $(BUILD_SHARED_LIBRARY)
 
