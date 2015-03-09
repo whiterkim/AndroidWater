@@ -28,8 +28,16 @@ android {
     }
 
     task ndkBuild(type: Exec) {
+        def rootDir = project.rootDir
+        def localProperties = new File(rootDir, "local.properties")
+        Properties properties = new Properties()
+        localProperties.withInputStream { instr ->
+            properties.load(instr)
+        }
+
+        def ndkDir = properties.getProperty('ndk.dir')
         if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-            def ndkDir = System.getenv("ANDROID_NDK_ROOT")
+//            def ndkDir = System.getenv("ANDROID_NDK_ROOT")
             commandLine 'cmd', '/C', "$ndkDir/ndk-build",
                     'NDK_PROJECT_PATH=build',
                     'APP_BUILD_SCRIPT=src/main/jni/Android.mk',
@@ -38,8 +46,7 @@ android {
 
         } else {
 
-            //def ndkDir = System.getenv("NDKROOT")
-            def ndkDir = "/Users/hyspace/Library/Android/ndk"
+//            def ndkDir = System.getenv("NDKROOT")
             commandLine "$ndkDir/ndk-build",
                     'NDK_PROJECT_PATH=build',
                     'APP_BUILD_SCRIPT=src/main/jni/Android.mk',
