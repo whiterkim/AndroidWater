@@ -50,7 +50,7 @@ __kernel void update_c(__global float *vertices,
   barrier(CLK_LOCAL_MEM_FENCE);
 
   const float n = 0.75f;
-  float3 light_direction = normalize((float3)(0.0f,0.2f,1.0f));
+  float3 light_direction = normalize((float3)(0.0f,0.5f,1.0f));
 
   int index, x, y, size_r = 0;
   float3 normal, position_l, position_h, light_fraction, l;

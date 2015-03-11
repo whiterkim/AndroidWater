@@ -168,7 +168,7 @@ int recompute(GLuint xMax, GLuint yMax, GLfloat dh, GLfloat dt, GLfloat c)
   cl::NDRange global = cl::NDRange((size_t)localx, (size_t)localy);
   cl::NDRange local = cl::NDRange((size_t)ls, (size_t)ls);
 
-  int r = rand() % 5;
+  int r = rand() % 10;
   if(r == 0){
     r = rand() % (xMax * yMax);
   }else{

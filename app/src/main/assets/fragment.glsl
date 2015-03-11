@@ -27,21 +27,21 @@ void main()
   vec3 l1 = camera_position - vertex_position_w;
   vec3 e = normalize(l1);
   vec3 f = refract(e, n, ita);
-  vec2 offset = f.xy * (vertex_position_w.z / f.z);
+  vec2 offset = (-e.xy - f.xy) * (vertex_position_w.z / f.z);
   offset = offset / (size - vec2(1.0));
   vec2 final_uv = uv + offset;
 
   // calculate specular
   vec3 r = reflect(light.direction, n);
   float c = max(dot(r, -e), 0.0);
-  vec3 specular = light.intensities * pow(c, 400.0) * 0.6;
+  vec3 specular = light.intensities * pow(c, 30.0) * 0.9;
 
   // add caustic texture with screencapture texture
   if(final_uv.x < 0.0 || final_uv. y < 0.0 || final_uv.x > 1.0 || final_uv.y > 1.0){
     color = vec3(0.0, 0.0, 0.0);
   }else{
     vec2 final_uv_i = vec2(final_uv.x, 1.0 - final_uv.y);
-    color = texture(sc_texture, final_uv_i ).xyz +
+    color = texture(sc_texture, final_uv_i ).xyz*0.7 +
             vec3(texture(caustic_texture, final_uv).r - 0.6) +
             specular;
     //color = specular;

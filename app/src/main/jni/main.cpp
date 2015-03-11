@@ -233,7 +233,7 @@ static int engine_init_display(struct engine* engine) {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint) * height_field->index_length, height_field->index_buffer, GL_DYNAMIC_DRAW);
 
     D_light light;
-    light.direction = glm::normalize(glm::vec3(0.0,0.2,1.0));
+    light.direction = glm::normalize(glm::vec3(0.0,0.5,1.0));
     light.intensities = glm::vec3(0.98,0.9,0.6);
     GLuint light_direction_handler = glGetUniformLocation(program_id, "light.direction");
     glUniform3fv(light_direction_handler, 1, glm::value_ptr(light.direction));
