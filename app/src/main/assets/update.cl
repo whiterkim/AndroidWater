@@ -10,21 +10,13 @@ typedef struct {
 
 #define SIZE 3
 
-// #define GROUP_SIZE 8
-
-// #define LOCAL_MEM_SIZE (LOCAL_SIZE + SIZE * 2)
-
-// #define GROUP_AMOUNT (LOCAL_SIZE * LOCAL_SIZE)
-// #define LOCAL_MEM_AMOUNT (LOCAL_MEM_SIZE * LOCAL_MEM_SIZE)
-
-// #define ROW_OFFSET LOCAL_AMOUNT / LOCAL_MEM_SIZE
-// #define COL_OFFSET LOCAL_AMOUNT % LOCAL_MEM_SIZE
-
-// #define LOOP_COUNT (LOCAL_MEM_AMOUNT - 1) / LOCAL_AMOUNT + 1
+#define GROUP_SIZE 8
 
 __kernel void update_c(__global float *vertices,
                        write_only image2d_t output,
                        float dh,
+                       float dt,
+                       float c,
                        int image_size_x,
                        int image_size_y,
                        __global float *debug)
@@ -33,54 +25,42 @@ __kernel void update_c(__global float *vertices,
   int i = get_global_id(1);
 
   if(j >= image_size_x || i >= image_size_y) {
-    // barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_LOCAL_MEM_FENCE);
     return;
   }
 
   __global vertex * v = (__global vertex *) vertices;
 
-  // __local vertex local_vertices[LOCAL_MEM_AMOUNT];
+  __local float local_z[GROUP_SIZE][GROUP_SIZE];//(3+8+3)*14
+  //__local float local_nx[GROUP_SIZE][GROUP_SIZE];
+  //__local float local_ny[GROUP_SIZE][GROUP_SIZE];
+  //__local float local_nz[GROUP_SIZE][GROUP_SIZE];
 
-  // int local_offset = get_local_id(0) * get_local_id(1);
-  // int global_offset = (local_offset / LOCAL_MEM_SIZE) * image_size_x + (local_offset % LOCAL_MEM_SIZE);
+  int jj = get_local_id(0);
+  int ii = get_local_id(1);
 
-  // int start_global = (get_block_id(1) * GROUP_SIZE - SIZE) * image_size_x + (get_block_id(0) * GROUP_SIZE -SIZE);
-  // int start_local = 0;
-
-  // int k;
-  // start_global -= ROW_OFFSET * image_size_x + COL_OFFSET;
-  // start_local -= GROUP_AMOUNT;
-  // for(k =0;k<LOOP_COUNT;++k){
-  //   start_global += ROW_OFFSET * image_size_x + COL_OFFSET;
-  //   start_local += GROUP_AMOUNT;
-
-  //   int final_global = start_global + global_offset;
-  //   int final_local = start_local + local_offset;
-  //   if(final_local >= LOCAL_MEM_SIZE){
-  //     break;
-  //   }
-
-  //   if(final_global < image_size_x * image_size_y && final_global > 0){
-  //     local_vertices[start_local + local_offset] = v[start_global + global_offset];
-  //   }else{
-
-  //   }
-  // }
-
-  // barrier(CLK_LOCAL_MEM_FENCE);
   //load to local
+  int image_index = i * image_size_x + j;
+
+  local_z[ii][jj] = v[image_index].z;
+  //local_nx[ii][jj] = v[image_index].nx;
+  //local_ny[ii][jj] = v[image_index].ny;
+  //local_nz[ii][jj] = v[image_index].nz;
+
+  barrier(CLK_LOCAL_MEM_FENCE);
 
   const float n = 0.75f;
   float3 light_direction = normalize((float3)(0.0f,0.2f,1.0f));
 
   int index, x, y, size_r = 0;
   float3 normal, position_l, position_h, light_fraction, l;
-  float c1, c2, intensity = 0, light_color = 1;
+  float c1, c2, intensity = 0.0f, light_color = 1.0f;
 
   position_l = (float3)((float)(j * dh), (float)(i * dh), 0.0f);
 
-  for(x = (int)j - SIZE; x <= (int)j + SIZE; ++x){
-    for(y = (int)i - SIZE; y <= (int)i + SIZE; ++y){
+  for(y = (int)i - SIZE; y <= (int)i + SIZE; ++y){
+    for(x = (int)j - SIZE; x <= (int)j + SIZE; ++x){
+
       if(y < 0) {
         continue;
       }
@@ -93,21 +73,29 @@ __kernel void update_c(__global float *vertices,
       if(x >= image_size_x){
         continue;
       }
-      index = y * image_size_x + x;
-      position_h = (float3)(v[index].x, v[index].y, v[index].z);
+
+      if(x - j >=0 && x - j < GROUP_SIZE && y - i>=0 && y - i< GROUP_SIZE){
+        position_h = (float3)((float)dh * x, (float)dh * y, local_z[ii][jj]);
+        //normal = normalize((float3)(local_nx[ii][jj], local_ny[ii][jj], local_nz[ii][jj]));
+      }else{
+        index = y * image_size_x + x;
+        position_h = (float3)(v[index].x, v[index].y, v[index].z);
+        //normal = normalize((float3)(v[index].nx, v[index].ny, v[index].nz));
+      }
+      normal = normalize((float3)(v[index].nx, v[index].ny, v[index].nz));
+
       l = normalize(position_l - position_h);
 
-      normal = normalize((float3)(v[index].nx, v[index].ny, v[index].nz));
-      c1 = max(dot(normal, -l), 0.0);
+      c1 = max(dot(normal, -l), 0.0f);
       light_fraction = -l/n - normal * (sqrt(1.0f - (1.0f - c1*c1)/n/n) - c1/n);
-      c2 = max(dot(light_fraction, light_direction),0.0);
+      c2 = max(dot(light_fraction, light_direction),0.0f);
 
       intensity += c2;
 
-      normal = (float3)(0.0, 0.0, 1.0);
-      c1 = max(dot(normal, -l), 0.0);
+      normal = (float3)(0.0f, 0.0f, 1.0f);
+      c1 = max(dot(normal, -l), 0.0f);
       light_fraction = -l/n - normal * (sqrt(1.0f - (1.0f - c1*c1)/n/n) - c1/n);
-      c2 = max(dot(light_fraction, light_direction),0.0);
+      c2 = max(dot(light_fraction, light_direction),0.0f);
 
       intensity -= c2;
 
@@ -115,388 +103,105 @@ __kernel void update_c(__global float *vertices,
     }
   }
   intensity = intensity / size_r;
-  intensity = intensity + 0.2;
+  intensity = intensity + 0.2f;
 
-  intensity = max(min(intensity, 0.5), 0.0) + 0.4;
+  intensity = max(min(intensity, 0.5f), 0.0f) + 0.4f;
 
   write_imagef(output, (int2)(j,i), (float4)(intensity));
-}
 
-__kernel void update_v(
-                       __global float *vertices,
-                       float dh, float dt, float c,
-                       uint image_size_x,
-                       uint image_size_y,
-                       __global float *debug)
-{
+  // kernel 2
   float D = 17500.0f * dh;
-  uint j = get_global_id(0);
-  uint i = get_global_id(1);
-
-  if(j >= image_size_x || i >= image_size_y) return;
-
-  uint xMax = image_size_x;
-  uint yMax = image_size_y;
-  uint xMax1 = xMax - 1;
-  uint yMax1 = yMax - 1;
-  uint index = i * xMax + j;
-  __global vertex * v = (__global vertex *) vertices;
-
-  float u00, u01, u02, u10, u11, u12, u20, u21, u22,
-  x00, x01, x02, x10, x11, x12, x20, x21, x22,
-  y00, y01, y02, y10, y11, y12, y20, y21, y22;
-
-  u11 = v[index].z;
-  x11 = v[index].x;
-  y11 = v[index].y;
-
-  if(j > 0 && i > 0 && j < xMax1 && i < yMax1){
-    u00 = v[index -xMax -1].z;
-    x00 = v[index -xMax -1].x;
-    y00 = v[index -xMax -1].y;
-
-    u01 = v[index -1].z;
-    x01 = v[index -1].x;
-    y01 = v[index -1].y;
-
-    u02 = v[index +xMax -1].z;
-    x02 = v[index +xMax -1].x;
-    y02 = v[index +xMax -1].y;
-
-    u10 = v[index -xMax].z;
-    x10 = v[index -xMax].x;
-    y10 = v[index -xMax].y;
-
-    u12 = v[index +xMax].z;
-    x12 = v[index +xMax].x;
-    y12 = v[index +xMax].y;
-
-    u20 = v[index -xMax +1].z;
-    x20 = v[index -xMax +1].x;
-    y20 = v[index -xMax +1].y;
-
-    u21 = v[index +1].z;
-    x21 = v[index +1].x;
-    y21 = v[index +1].y;
-
-    u22 = v[index +xMax +1].z;
-    x22 = v[index +xMax +1].x;
-    y22 = v[index +xMax +1].y;
-  }else{
-    if(j == 0 && i == 0){
-      u00 = u11;
-      x00 = x11;
-      y00 = y11;
-
-      u01 = u11;
-      x01 = x11;
-      y01 = y11;
-
-      u02 = v[index +xMax].z;
-      x02 = v[index +xMax].x;
-      y02 = v[index +xMax].y;
-
-      u10 = u11;
-      x10 = x11;
-      y10 = y11;
-
-      u12 = u02;
-      x12 = x02;
-      y12 = y02;
-
-      u20 = v[index +1].z;
-      x20 = v[index +1].x;
-      y20 = v[index +1].y;
-
-      u21 = u20;
-      x21 = x20;
-      y21 = y20;
-
-      u22 = v[index +xMax +1].z;
-      x22 = v[index +xMax +1].x;
-      y22 = v[index +xMax +1].y;
-    }else if(j == 0 && i < yMax1){
-      u00 = v[index -xMax].z;
-      x00 = v[index -xMax].x;
-      y00 = v[index -xMax].y;
-
-      u01 = u11;
-      x01 = x11;
-      y01 = y11;
-
-      u02 = v[index +xMax].z;
-      x02 = v[index +xMax].x;
-      y02 = v[index +xMax].y;
-
-      u10 = u00;
-      x10 = x00;
-      y10 = y00;
-
-      u12 = u02;
-      x12 = x02;
-      y12 = y02;
-
-      u20 = v[index -xMax +1].z;
-      x20 = v[index -xMax +1].x;
-      y20 = v[index -xMax +1].y;
-
-      u21 = v[index +1].z;
-      x21 = v[index +1].x;
-      y21 = v[index +1].y;
-
-      u22 = v[index +xMax +1].z;
-      x22 = v[index +xMax +1].x;
-      y22 = v[index +xMax +1].y;
-    }else if(j == 0 && i == yMax1){
-      // u00 = u10
-      u00 = v[index -xMax].z;
-      x00 = v[index -xMax].x;
-      y00 = v[index -xMax].y;
-
-      u01 = u11;
-      x01 = x11;
-      y01 = y11;
-
-      u02 = u11;
-      x02 = x11;
-      y02 = y11;
-
-      u10 = u00;
-      x10 = x00;
-      y10 = y00;
-
-      u12 = u11;
-      x12 = x11;
-      y12 = y11;
-
-      u20 = v[index -xMax +1].z;
-      x20 = v[index -xMax +1].x;
-      y20 = v[index -xMax +1].y;
-
-      u21 = v[index +1].z;
-      x21 = v[index +1].x;
-      y21 = v[index +1].y;
-
-      u22 = u21;
-      x22 = x21;
-      y22 = y21;
-    }else if(i == yMax1 && j < xMax1){
-      u00 = v[index -xMax -1].z;
-      x00 = v[index -xMax -1].x;
-      y00 = v[index -xMax -1].y;
-
-      u01 = v[index -1].z;
-      x01 = v[index -1].x;
-      y01 = v[index -1].y;
-
-      u02 = u01;
-      x02 = x01;
-      y02 = y01;
-
-      u10 = v[index -xMax].z;
-      x10 = v[index -xMax].x;
-      y10 = v[index -xMax].y;
-
-      u12 = u11;
-      x12 = x11;
-      y12 = y11;
-
-      u20 = v[index -xMax +1].z;
-      x20 = v[index -xMax +1].x;
-      y20 = v[index -xMax +1].y;
-
-      u21 = v[index +1].z;
-      x21 = v[index +1].x;
-      y21 = v[index +1].y;
-
-      u22 = u21;
-      x22 = x21;
-      y22 = y21;
-    }else if(i == yMax1 && j == xMax1){
-      u00 = v[index -xMax -1].z;
-      x00 = v[index -xMax -1].x;
-      y00 = v[index -xMax -1].y;
-
-      u01 = v[index -1].z;
-      x01 = v[index -1].x;
-      y01 = v[index -1].y;
-
-      u02 = u01;
-      x02 = x01;
-      y02 = y01;
-
-      u10 = v[index -xMax].z;
-      x10 = v[index -xMax].x;
-      y10 = v[index -xMax].y;
-
-      u12 = u11;
-      x12 = x11;
-      y12 = y11;
-
-      u20 = u10;
-      x20 = x10;
-      y20 = y10;
-
-      u21 = u11;
-      x21 = x11;
-      y21 = y11;
-
-      u22 = u11;
-      x22 = x11;
-      y22 = y11;
-    }else if(j == xMax1 && i > 0){
-      u00 = v[index -xMax -1].z;
-      x00 = v[index -xMax -1].x;
-      y00 = v[index -xMax -1].y;
-
-      u01 = v[index -1].z;
-      x01 = v[index -1].x;
-      y01 = v[index -1].y;
-
-      u02 = v[index +xMax -1].z;
-      x02 = v[index +xMax -1].x;
-      y02 = v[index +xMax -1].y;
-
-      u10 = v[index -xMax].z;
-      x10 = v[index -xMax].x;
-      y10 = v[index -xMax].y;
-
-      u12 = v[index +xMax].z;
-      x12 = v[index +xMax].x;
-      y12 = v[index +xMax].y;
-
-      u20 = u10;
-      x20 = x10;
-      y20 = y10;
-
-      u21 = u11;
-      x21 = x11;
-      y21 = y11;
-
-      u22 = u12;
-      x22 = x12;
-      y22 = y12;
-    }else if(i == 0 && j== xMax1){
-      u00 = v[index -1].z;
-      x00 = v[index -1].x;
-      y00 = v[index -1].y;
-
-      u01 = u00;
-      x01 = x00;
-      y01 = y00;
-
-      u02 = v[index +xMax -1].z;
-      x02 = v[index +xMax -1].x;
-      y02 = v[index +xMax -1].y;
-
-      u10 = u11;
-      x10 = x11;
-      y10 = y11;
-
-      u12 = v[index +xMax].z;
-      x12 = v[index +xMax].x;
-      y12 = v[index +xMax].y;
-
-      u20 = u11;
-      x20 = x11;
-      y20 = y11;
-
-      u21 = u11;
-      x21 = x11;
-      y21 = y11;
-
-      u22 = u12;
-      x22 = x12;
-      y22 = y12;
+  float u01, u21, u11, u10, u12;
+  u11 = local_z[ii][jj];
+  if(ii != 0 && jj != 0 && ii != GROUP_SIZE - 1 && jj != GROUP_SIZE - 1){
+    u01 = local_z[ii - 1][jj];
+    u10 = local_z[ii][jj - 1];
+    if(i == image_size_y - 1){
+      u21 = local_z[ii][jj];
     }else{
-      u00 = v[index -1].z;
-      x00 = v[index -1].x;
-      y00 = v[index -1].y;
-
-      u01 = u00;
-      x01 = x00;
-      y01 = y00;
-
-      u02 = v[index +xMax -1].z;
-      x02 = v[index +xMax -1].x;
-      y02 = v[index +xMax -1].y;
-
-      u10 = u11;
-      x10 = x11;
-      y10 = y11;
-
-      u12 = v[index +xMax].z;
-      x12 = v[index +xMax].x;
-      y12 = v[index +xMax].y;
-
-      u20 = v[index +1].z;
-      x20 = v[index +1].x;
-      y20 = v[index +1].y;
-
-      u21 = u20;
-      x21 = x20;
-      y21 = y20;
-
-      u22 = v[index +xMax +1].z;
-      x22 = v[index +xMax +1].x;
-      y22 = v[index +xMax +1].y;
+      u21 = local_z[ii + 1][jj];
+    }
+    if(j == image_size_x - 1){
+      u12 = local_z[ii][jj];
+    }else{
+      u12 = local_z[ii][jj + 1];
+    }
+  }else{
+    if(i == 0){
+      u01 = local_z[ii][jj];
+    }else{
+      u01 = v[image_index - image_size_x].z;
+    }
+    if(j == 0){
+      u10 = local_z[ii][jj];
+    }else{
+      u10 = v[image_index - 1].z;
+    }
+    if(i == image_size_y - 1){
+      u21 = local_z[ii][jj];
+    }else{
+      u21 = v[image_index + image_size_x].z;
+    }
+    if(j == image_size_x - 1){
+      u12 = local_z[ii][jj];
+    }else{
+      u12 = v[image_index + 1].z;
     }
   }
-  float p = (u00 + 4.0f*u01 + 4.0f*u21 + u22 - 20.0f*u11 + u20 + 4.0f*u10 + 4.0f*u12 + u02) / (6.0f * dh * dh);
-  //float p = (u01 + u21 - 4.0f*u11  + u10 + u12) / (4.0f * dh * dh);
 
-  float f = c * c * (p - v[index].v / D);
+  float p = (u01 + u21 - 4.0f*u11  + u10 + u12) / (4.0f * dh * dh);
 
-  v[index].v += f * dt;
+  float f = c * c * (p - v[image_index].v / D);
 
-  float3 nx = (float3)(2.0f*(x21 - x01) + x20 - x00 + x22 - x02, 0.0f, 2.0f*(u21 - u01) + u20 - u00 + u22 - u02);
-  float3 ny = (float3)(0, 2.0f*(y12 - y10) + y02 - y00 + y22 - y20, 2.0f * (u12 - u10) + u02 - u00 + u22 - u20);
-  //float3 nx = (float3)(x21 - x01, 0.0f, u21 - u01);
-  //float3 ny = (float3)(0.0f, y12 - y10, u12 - u10);
-  float3 n = normalize(cross(nx, ny));
+  v[image_index].v += f * dt;
 
-  v[index].nx = n.x;
-  v[index].ny = n.y;
-  v[index].nz = n.z;
+  float3 nx = (float3)((float)dh*2, 0.0f, u21 - u01);
+  float3 ny = (float3)(0.0f, (float)dh*2, u12 - u10);
+  float3 nn = normalize(cross(nx, ny));
+
+  v[image_index].nx = nn.x;
+  v[image_index].ny = nn.y;
+  v[image_index].nz = nn.z;
 }
 
 #define drop_size 5
 
 __kernel void update_u(
-                       __global float *vertices,
+                       const __global float *vertices,
                        float dh,
                        float dt,
                        int random,
-                       int xMax,
-                       int yMax,
+                       uint image_size_x,
+                       uint image_size_y,
                        __global float *debug)
 {
   float2 rain_point;
 
-  int j = get_global_id(0);
-  int i = get_global_id(1);
+  uint j = get_global_id(0);
+  uint i = get_global_id(1);
 
-  if(j >= xMax || i >= yMax) return;
+  if(j >= image_size_x || i >= image_size_y) return;
 
-  int index = i * xMax + j;
+  uint index = i * image_size_x + j;
   __global vertex * v = (__global vertex *) vertices;
   vertex vp = v[index];
 
+
   vp.z += vp.v * dt;
 
-  int x, y;
-  int index2;
+  uint x, y;
+  uint index2;
 
-  y = random / xMax;
-  x = random % yMax;
+  y = random / image_size_x;
+  x = random % image_size_x;
 
-  if(y >= yMax){
+  if(y >= image_size_y){
     v[index].z = vp.z;
     return;
   };
 
-  index2 = y * xMax + x;
-  rain_point = (float2)(v[index2].x, v[index2].y);
+  index2 = y * image_size_x + x;
+  rain_point = (float2)((float)(dh * x), (float)(dh * y));
 
   float2 cp = (float2)(vp.x, vp.y);
   float r;
@@ -504,9 +209,9 @@ __kernel void update_u(
   r = distance(rain_point, cp);
   if(r < drop_size * dh){
     if(random % 2){
-      vp.z += 0.2f * r * cos(r / drop_size / dh * 1.57f);
+      vp.z += 0.7f * r * cos(r / drop_size / dh * 1.57f);
     }else{
-      vp.z -= 0.2f * r * cos(r / drop_size / dh * 1.57f);
+      vp.z -= 0.7f * r * cos(r / drop_size / dh * 1.57f);
     }
   }
 

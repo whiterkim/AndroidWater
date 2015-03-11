@@ -85,12 +85,12 @@ int initCL(std::string& prog, EGLContext& kEGLContext, EGLDisplay& kEGLDisplay)
     return EXIT_FAILURE;
   }
 
-  update_v = cl::Kernel(program, "update_v", &err);
-  if (err != CL_SUCCESS)
-  {
-    LOGI("Failed to create kernel \"update_v\"!\n");
-    return EXIT_FAILURE;
-  }
+//  update_v = cl::Kernel(program, "update_v", &err);
+//  if (err != CL_SUCCESS)
+//  {
+//    LOGI("Failed to create kernel \"update_v\"!\n");
+//    return EXIT_FAILURE;
+//  }
 
   update_u = cl::Kernel(program, "update_u", &err);
   if (err != CL_SUCCESS)
@@ -188,27 +188,27 @@ int recompute(GLuint xMax, GLuint yMax, GLfloat dh, GLfloat dt, GLfloat c)
   queue.finish();
 
 
-  // launch kernels
-  update_v.setArg(0, cgl_objs[0]);
-  update_v.setArg(1, dh);
-  update_v.setArg(2, dt);
-  update_v.setArg(3, c);
-  update_v.setArg(4, xMax);
-  update_v.setArg(5, yMax);
-  update_v.setArg(6, debug_buff);
-
-  err = queue.enqueueNDRangeKernel(update_v,
-                                  offset,
-                                  global,
-                                  local,
-                                  NULL,
-                                  NULL);
-  if (err != CL_SUCCESS)
-  {
-   LOGI("Failed to run kernel \"update_v\" %d \n", err);
-   return EXIT_FAILURE;
-  }
-  queue.finish();
+//  // launch kernels
+//  update_v.setArg(0, cgl_objs[0]);
+//  update_v.setArg(1, dh);
+//  update_v.setArg(2, dt);
+//  update_v.setArg(3, c);
+//  update_v.setArg(4, xMax);
+//  update_v.setArg(5, yMax);
+//  update_v.setArg(6, debug_buff);
+//
+//  err = queue.enqueueNDRangeKernel(update_v,
+//                                  offset,
+//                                  global,
+//                                  local,
+//                                  NULL,
+//                                  NULL);
+//  if (err != CL_SUCCESS)
+//  {
+//   LOGI("Failed to run kernel \"update_v\" %d \n", err);
+//   return EXIT_FAILURE;
+//  }
+//  queue.finish();
 
   update_u.setArg(0, cgl_objs[0]);
   update_u.setArg(1, dh);
@@ -234,10 +234,11 @@ int recompute(GLuint xMax, GLuint yMax, GLfloat dh, GLfloat dt, GLfloat c)
   update_caustic.setArg(0, cgl_objs[0]);
   update_caustic.setArg(1, cgl_objs[1]);
   update_caustic.setArg(2, dh);
-  update_caustic.setArg(3, xMax);
-  update_caustic.setArg(4, yMax);
-  update_caustic.setArg(5, debug_buff);
-
+  update_caustic.setArg(3, dt);
+  update_caustic.setArg(4, c);
+  update_caustic.setArg(5, xMax);
+  update_caustic.setArg(6, yMax);
+  update_caustic.setArg(7, debug_buff);
   err = queue.enqueueNDRangeKernel(update_caustic,
                                    cl::NullRange,
                                    global,
