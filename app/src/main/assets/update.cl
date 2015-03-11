@@ -10,18 +10,6 @@ typedef struct {
 
 #define SIZE 3
 
-// #define GROUP_SIZE 8
-
-// #define LOCAL_MEM_SIZE (LOCAL_SIZE + SIZE * 2)
-
-// #define GROUP_AMOUNT (LOCAL_SIZE * LOCAL_SIZE)
-// #define LOCAL_MEM_AMOUNT (LOCAL_MEM_SIZE * LOCAL_MEM_SIZE)
-
-// #define ROW_OFFSET LOCAL_AMOUNT / LOCAL_MEM_SIZE
-// #define COL_OFFSET LOCAL_AMOUNT % LOCAL_MEM_SIZE
-
-// #define LOOP_COUNT (LOCAL_MEM_AMOUNT - 1) / LOCAL_AMOUNT + 1
-
 __kernel void update_c(__global float *vertices,
                        write_only image2d_t output,
                        float dh,
@@ -38,37 +26,6 @@ __kernel void update_c(__global float *vertices,
   }
 
   __global vertex * v = (__global vertex *) vertices;
-
-  // __local vertex local_vertices[LOCAL_MEM_AMOUNT];
-
-  // int local_offset = get_local_id(0) * get_local_id(1);
-  // int global_offset = (local_offset / LOCAL_MEM_SIZE) * image_size_x + (local_offset % LOCAL_MEM_SIZE);
-
-  // int start_global = (get_block_id(1) * GROUP_SIZE - SIZE) * image_size_x + (get_block_id(0) * GROUP_SIZE -SIZE);
-  // int start_local = 0;
-
-  // int k;
-  // start_global -= ROW_OFFSET * image_size_x + COL_OFFSET;
-  // start_local -= GROUP_AMOUNT;
-  // for(k =0;k<LOOP_COUNT;++k){
-  //   start_global += ROW_OFFSET * image_size_x + COL_OFFSET;
-  //   start_local += GROUP_AMOUNT;
-
-  //   int final_global = start_global + global_offset;
-  //   int final_local = start_local + local_offset;
-  //   if(final_local >= LOCAL_MEM_SIZE){
-  //     break;
-  //   }
-
-  //   if(final_global < image_size_x * image_size_y && final_global > 0){
-  //     local_vertices[start_local + local_offset] = v[start_global + global_offset];
-  //   }else{
-
-  //   }
-  // }
-
-  // barrier(CLK_LOCAL_MEM_FENCE);
-  //load to local
 
   const float n = 0.75f;
   float3 light_direction = normalize((float3)(0.0f,0.2f,1.0f));
