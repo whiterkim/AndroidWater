@@ -32,9 +32,9 @@ __kernel void update_c(__global float *vertices,
   __global vertex * v = (__global vertex *) vertices;
 
   __local float local_z[GROUP_SIZE][GROUP_SIZE];//(3+8+3)*14
-  //__local float local_nx[GROUP_SIZE][GROUP_SIZE];
-  //__local float local_ny[GROUP_SIZE][GROUP_SIZE];
-  //__local float local_nz[GROUP_SIZE][GROUP_SIZE];
+  __local float local_nx[GROUP_SIZE][GROUP_SIZE];
+  __local float local_ny[GROUP_SIZE][GROUP_SIZE];
+  __local float local_nz[GROUP_SIZE][GROUP_SIZE];
 
   int jj = get_local_id(0);
   int ii = get_local_id(1);
@@ -43,9 +43,9 @@ __kernel void update_c(__global float *vertices,
   int image_index = i * image_size_x + j;
 
   local_z[ii][jj] = v[image_index].z;
-  //local_nx[ii][jj] = v[image_index].nx;
-  //local_ny[ii][jj] = v[image_index].ny;
-  //local_nz[ii][jj] = v[image_index].nz;
+  local_nx[ii][jj] = v[image_index].nx;
+  local_ny[ii][jj] = v[image_index].ny;
+  local_nz[ii][jj] = v[image_index].nz;
 
   barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -76,13 +76,13 @@ __kernel void update_c(__global float *vertices,
 
       if(x - j >=0 && x - j < GROUP_SIZE && y - i>=0 && y - i< GROUP_SIZE){
         position_h = (float3)((float)dh * x, (float)dh * y, local_z[ii][jj]);
-        //normal = normalize((float3)(local_nx[ii][jj], local_ny[ii][jj], local_nz[ii][jj]));
+        normal = (float3)(local_nx[ii][jj], local_ny[ii][jj], local_nz[ii][jj]);
       }else{
         index = y * image_size_x + x;
         position_h = (float3)(v[index].x, v[index].y, v[index].z);
-        //normal = normalize((float3)(v[index].nx, v[index].ny, v[index].nz));
+        normal = (float3)(v[index].nx, v[index].ny, v[index].nz);
       }
-      normal = normalize((float3)(v[index].nx, v[index].ny, v[index].nz));
+      //normal = (float3)(v[index].nx, v[index].ny, v[index].nz);
 
       l = normalize(position_l - position_h);
 
@@ -171,26 +171,26 @@ __kernel void update_u(
                        float dh,
                        float dt,
                        int random,
-                       uint image_size_x,
-                       uint image_size_y,
+                       int image_size_x,
+                       int image_size_y,
                        __global float *debug)
 {
   float2 rain_point;
 
-  uint j = get_global_id(0);
-  uint i = get_global_id(1);
+  int j = get_global_id(0);
+  int i = get_global_id(1);
 
   if(j >= image_size_x || i >= image_size_y) return;
 
-  uint index = i * image_size_x + j;
+  int index = i * image_size_x + j;
   __global vertex * v = (__global vertex *) vertices;
   vertex vp = v[index];
 
 
   vp.z += vp.v * dt;
 
-  uint x, y;
-  uint index2;
+  int x, y;
+  int index2;
 
   y = random / image_size_x;
   x = random % image_size_x;
