@@ -63,12 +63,14 @@ HeightField<GLfloat> * height_field;
 
 GLfloat dh = 16.0;
 GLfloat c = 600.0;
-const double dt = dh / c / 1.5;
+const double dt = dh / c / 2.0;
 
 GLuint vertex_buffer;
 GLuint index_buffer;
 GLuint vertex_array_id;
 GLuint program_id;
+
+GLfloat *vertex_buffer_cpu;
 
 GLuint caustic_texture_id;
 GLuint sc_texture_id;
@@ -227,6 +229,17 @@ static int engine_init_display(struct engine* engine) {
     glGenBuffers(1, &vertex_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * height_field->vertex_length, height_field->vertex_buffer, GL_DYNAMIC_DRAW);
+    //vertex_buffer_cpu = (float*) glMapBufferRange(GL_ARRAY_BUFFER, 0, sizeof(GLfloat) * height_field->vertex_length, GL_MAP_READ_BIT|GL_MAP_WRITE_BIT);
+    //vertex_buffer_cpu=height_field->vertex_buffer;
+
+    if (vertex_buffer_cpu == NULL)
+    {
+        LOGI("Failed to map buffer");
+    }
+    /*else
+    {
+        LOGI("Succeed to map buffer %f",vertex_buffer_cpu[1]);
+    }*/
 
     glGenBuffers(1, &index_buffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
@@ -297,7 +310,7 @@ static int engine_init_display(struct engine* engine) {
     GLuint caustic_texture_handler = glGetUniformLocation(program_id, "caustic_texture");
     glUniform1i(caustic_texture_handler, 1);
 
-    initGLObjects(vertex_buffer, caustic_texture_id);
+    initGLObjects(vertex_buffer, caustic_texture_id);//~~
 
     return 0;
 }
@@ -315,7 +328,7 @@ static void engine_draw_frame(struct engine* engine) {
 
     // regenerate mipmap for caustic shader
     glActiveTexture(GL_TEXTURE1);
-    glGenTextures(1, &caustic_texture_id);
+    glBindTexture(GL_TEXTURE_2D, caustic_texture_id);
     glGenerateMipmap(GL_TEXTURE_2D);
 
     // draw!
@@ -339,10 +352,20 @@ static void engine_draw_frame(struct engine* engine) {
 
 
     // call OpenCL kernel
-    int err = recompute(height_field->xMax, height_field->yMax, dh, min((GLfloat)(t - time_now), (GLfloat)dt), c);
-    if(err != 0){
+    //int err = recompute(height_field->xMax, height_field->yMax, dh, min((GLfloat)(t - time_now), (GLfloat)dt), c);
+    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+    vertex_buffer_cpu = (float*) glMapBufferRange(GL_ARRAY_BUFFER, 0, sizeof(GLfloat) * height_field->vertex_length, GL_MAP_READ_BIT|GL_MAP_WRITE_BIT);
+    int err = recomputeCPU(height_field->xMax, height_field->yMax, dh, min((GLfloat)(t - time_now), (GLfloat)dt), c, vertex_buffer_cpu, caustic_texture_id);
+    //glFlushMappedBufferRange(GL_ARRAY_BUFFER, 0, sizeof(GLfloat) * height_field->vertex_length);
+    //glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+    //glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * height_field->vertex_length, vertex_buffer_cpu, GL_DYNAMIC_DRAW);
+    //LOGI("v %f",vertex_buffer_cpu[3]);
+    glUnmapBuffer(GL_ARRAY_BUFFER);
+
+    /*if(err != 0){
+        LOGI("error: %d",err);
         engine->animating = 0;
-    }
+    }*/
 
     time_now = now_s();
 }

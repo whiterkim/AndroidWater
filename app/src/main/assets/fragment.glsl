@@ -45,6 +45,6 @@ void main()
             vec3(texture(caustic_texture, final_uv).r - 0.6) +
             specular;
     //color = specular;
-    //color = vec3(texture(caustic_texture, final_uv).r);
+    color = vec3(texture(caustic_texture, final_uv).r);
   }
 }

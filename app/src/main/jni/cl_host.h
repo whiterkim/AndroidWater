@@ -27,5 +27,7 @@ int freeCL(void);
 
 int recompute(GLuint, GLuint, GLfloat, GLfloat, GLfloat);
 
+int recomputeCPU(GLuint, GLuint, GLfloat, GLfloat, GLfloat, GLfloat*, GLuint);
+
 
 #endif /* defined(__Rain__cl_host__) */

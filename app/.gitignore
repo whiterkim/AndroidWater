@@ -1,6 +1,1 @@
 /build
-*.so
-libs
-obj
-bin
-*.log
